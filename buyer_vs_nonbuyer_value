@@ -1,0 +1,40 @@
+#Let's start with an empty DataFrame
+yesbuyer_vs_nonbuyer = pd.DataFrame(columns = ['category', 'category_probability',
+                                               'yes_buyer_avg_value', 'yes_buyer_count',
+                                               'non_buyer_avg_value', 'non_buyer_count'])
+
+# Let's loop through each category and subset customers based on whether they did or didn't buy a product in that category,
+for cat in categories:
+    # First we indicate whether each row is "cat", the category of the current loop iteration:
+    receipt['bought_cat?'] = receipt['category'] == cat  
+    
+    # Next we assess weather each customer bought a product in cat at least once:
+    bought_cat_bin = receipt.groupby('customer_id').max('bought_cat?')
+    
+    # We now split the above set of customers into yes_buyers and non_buyers:
+    yes_buyers = bought_cat_bin[bought_cat_bin['bought_cat?'] == True ].reset_index()
+    non_buyers = bought_cat_bin[bought_cat_bin['bought_cat?'] == False].reset_index()
+    
+    # Now we inner join receipt with each of the two buyer DataFrames to create a separate "receipt" for each group:
+    yes_buyer_receipt = receipt.merge(yes_buyers, on = 'customer_id')
+    non_buyer_receipt = receipt.merge(non_buyers, on = 'customer_id')
+    
+    # For each of the new "receipts" we compute the average customer value:
+    yes_buyer_avg_value = yes_buyer_receipt['price'].sum()/yes_buyer_receipt['customer_id'].nunique()
+    non_buyer_avg_value = non_buyer_receipt['price'].sum()/non_buyer_receipt['customer_id'].nunique()
+    
+    # This part is not strictly necessary, but it is also helpful to see the count of unique customers on each "receipt":
+    yes_buyer_count = yes_buyer_receipt['customer_id'].nunique()
+    non_buyer_count = non_buyer_receipt['customer_id'].nunique()
+    
+    # We now gather the relevant data from this loop iteration, add it to a dictionary, and append it to the DataFrame:
+    row_dict = {'category': cat, 'category_probability': category_probabilities[categories.index(cat)],
+                'yes_buyer_avg_value': yes_buyer_avg_value, 'non_buyer_avg_value': non_buyer_avg_value,
+                'yes_buyer_count': yes_buyer_count, 'non_buyer_count': non_buyer_count}
+    yesbuyer_vs_nonbuyer = yesbuyer_vs_nonbuyer.append(row_dict, ignore_index = True)
+
+# For the sake of cleanliness, let's drop the now unnecessary column we created in the receipt DataFrame
+receipt.drop(columns = 'bought_cat?', inplace = True)
+
+#Finally, let's take a look at our data!
+yesbuyer_vs_nonbuyer
